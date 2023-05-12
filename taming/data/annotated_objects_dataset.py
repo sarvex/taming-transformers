@@ -140,14 +140,13 @@ class AnnotatedObjectsDataset(Dataset):
             self.categories = {id_: cat for id_, cat in self.categories.items() if cat.id not in self.category_mapping}
 
     def setup_category_id_and_number(self) -> None:
-        self.category_ids = list(self.categories.keys())
-        self.category_ids.sort()
+        self.category_ids = sorted(self.categories.keys())
         if '/m/01s55n' in self.category_ids:
             self.category_ids.remove('/m/01s55n')
             self.category_ids.append('/m/01s55n')
         self.category_number = {category_id: i for i, category_id in enumerate(self.category_ids)}
         if self.category_allow_list is not None and self.category_mapping is None \
-                and len(self.category_ids) != len(self.category_allow_list):
+                    and len(self.category_ids) != len(self.category_allow_list):
             warnings.warn('Unexpected number of categories: Mismatch with category_allow_list. '
                           'Make sure all names in category_allow_list exist.')
 

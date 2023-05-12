@@ -24,6 +24,10 @@ def run_conditional(model, dsets, outdir, top_k, temperature, batch_size=1):
     else:
         dset = next(iter(dsets.datasets.values()))
     print("Dataset: ", dset.__class__.__name__)
+    scale_factor = 1.0
+    half_sample = False
+    sample = True
+
     for start_idx in trange(0,len(dset)-batch_size+1,batch_size):
         indices = list(range(start_idx, start_idx+batch_size))
         example = default_collate([dset[i] for i in indices])
@@ -36,7 +40,6 @@ def run_conditional(model, dsets, outdir, top_k, temperature, batch_size=1):
         cond_key = model.cond_stage_key
         c = model.get_input(cond_key, example).to(model.device)
 
-        scale_factor = 1.0
         quant_z, z_indices = model.encode_to_z(x)
         quant_c, c_indices = model.encode_to_c(c)
 
@@ -57,12 +60,7 @@ def run_conditional(model, dsets, outdir, top_k, temperature, batch_size=1):
 
         idx = z_indices
 
-        half_sample = False
-        if half_sample:
-            start = idx.shape[1]//2
-        else:
-            start = 0
-
+        start = idx.shape[1]//2 if half_sample else 0
         idx[:,start:] = 0
         idx = idx.reshape(cshape[0],cshape[2],cshape[3])
         start_i = start//cshape[3]
@@ -70,8 +68,6 @@ def run_conditional(model, dsets, outdir, top_k, temperature, batch_size=1):
 
         cidx = c_indices
         cidx = cidx.reshape(quant_c.shape[0],quant_c.shape[2],quant_c.shape[3])
-
-        sample = True
 
         for i in range(start_i,cshape[2]-0):
             if i <= 8:
@@ -137,7 +133,7 @@ def get_parser():
         metavar="base_config.yaml",
         help="paths to base configs. Loaded from left-to-right. "
         "Parameters can be overwritten or added with command-line options of the form `--key value`.",
-        default=list(),
+        default=[],
     )
     parser.add_argument(
         "-c",
@@ -242,7 +238,7 @@ if __name__ == "__main__":
     ckpt = None
     if opt.resume:
         if not os.path.exists(opt.resume):
-            raise ValueError("Cannot find {}".format(opt.resume))
+            raise ValueError(f"Cannot find {opt.resume}")
         if os.path.isfile(opt.resume):
             paths = opt.resume.split("/")
             try:
@@ -260,11 +256,7 @@ if __name__ == "__main__":
         opt.base = base_configs+opt.base
 
     if opt.config:
-        if type(opt.config) == str:
-            opt.base = [opt.config]
-        else:
-            opt.base = [opt.base[-1]]
-
+        opt.base = [opt.config] if type(opt.config) == str else [opt.base[-1]]
     configs = [OmegaConf.load(cfg) for cfg in opt.base]
     cli = OmegaConf.from_dotlist(unknown)
     if opt.ignore_base_data:

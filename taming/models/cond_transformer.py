@@ -50,7 +50,7 @@ class Net2NetTransformer(pl.LightningModule):
         for k in sd.keys():
             for ik in ignore_keys:
                 if k.startswith(ik):
-                    self.print("Deleting key {} from state_dict.".format(k))
+                    self.print(f"Deleting key {k} from state_dict.")
                     del sd[k]
         self.load_state_dict(sd, strict=False)
         print(f"Restored from {path}")
@@ -187,13 +187,10 @@ class Net2NetTransformer(pl.LightningModule):
         bhwc = (zshape[0],zshape[2],zshape[3],zshape[1])
         quant_z = self.first_stage_model.quantize.get_codebook_entry(
             index.reshape(-1), shape=bhwc)
-        x = self.first_stage_model.decode(quant_z)
-        return x
+        return self.first_stage_model.decode(quant_z)
 
     @torch.no_grad()
     def log_images(self, batch, temperature=None, top_k=None, callback=None, lr_interface=False, **kwargs):
-        log = dict()
-
         N = 4
         if lr_interface:
             x, c = self.get_xc(batch, N, diffuse=False, upsample_factor=8)
@@ -236,9 +233,7 @@ class Net2NetTransformer(pl.LightningModule):
         # reconstruction
         x_rec = self.decode_to_img(z_indices, quant_z.shape)
 
-        log["inputs"] = x
-        log["reconstructions"] = x_rec
-
+        log = {"inputs": x, "reconstructions": x_rec}
         if self.cond_stage_key in ["objects_bbox", "objects_center_points"]:
             figure_size = (x_rec.shape[2], x_rec.shape[3])
             dataset = kwargs["pl_module"].trainer.datamodule.datasets["validation"]
@@ -292,8 +287,7 @@ class Net2NetTransformer(pl.LightningModule):
     def shared_step(self, batch, batch_idx):
         x, c = self.get_xc(batch)
         logits, target = self(x, c)
-        loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), target.reshape(-1))
-        return loss
+        return F.cross_entropy(logits.reshape(-1, logits.size(-1)), target.reshape(-1))
 
     def training_step(self, batch, batch_idx):
         loss = self.shared_step(batch, batch_idx)
@@ -320,7 +314,7 @@ class Net2NetTransformer(pl.LightningModule):
         blacklist_weight_modules = (torch.nn.LayerNorm, torch.nn.Embedding)
         for mn, m in self.transformer.named_modules():
             for pn, p in m.named_parameters():
-                fpn = '%s.%s' % (mn, pn) if mn else pn # full param name
+                fpn = f'{mn}.{pn}' if mn else pn
 
                 if pn.endswith('bias'):
                     # all biases will not be decayed
@@ -336,17 +330,21 @@ class Net2NetTransformer(pl.LightningModule):
         no_decay.add('pos_emb')
 
         # validate that we considered every parameter
-        param_dict = {pn: p for pn, p in self.transformer.named_parameters()}
+        param_dict = dict(self.transformer.named_parameters())
         inter_params = decay & no_decay
         union_params = decay | no_decay
-        assert len(inter_params) == 0, "parameters %s made it into both decay/no_decay sets!" % (str(inter_params), )
-        assert len(param_dict.keys() - union_params) == 0, "parameters %s were not separated into either decay/no_decay set!" \
-                                                    % (str(param_dict.keys() - union_params), )
+        assert (
+            len(inter_params) == 0
+        ), f"parameters {str(inter_params)} made it into both decay/no_decay sets!"
+        assert (
+            len(param_dict.keys() - union_params) == 0
+        ), f"parameters {str(param_dict.keys() - union_params)} were not separated into either decay/no_decay set!"
 
         # create the pytorch optimizer object
         optim_groups = [
             {"params": [param_dict[pn] for pn in sorted(list(decay))], "weight_decay": 0.01},
             {"params": [param_dict[pn] for pn in sorted(list(no_decay))], "weight_decay": 0.0},
         ]
-        optimizer = torch.optim.AdamW(optim_groups, lr=self.learning_rate, betas=(0.9, 0.95))
-        return optimizer
+        return torch.optim.AdamW(
+            optim_groups, lr=self.learning_rate, betas=(0.9, 0.95)
+        )

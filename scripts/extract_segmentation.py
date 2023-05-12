@@ -19,8 +19,7 @@ rescale = lambda x: (x + 1.) / 2.
 
 def rescale_bgr(x):
     x = (x+1)*127.5
-    x = torch.flip(x, dims=[0])
-    return x
+    return torch.flip(x, dims=[0])
 
 
 class COCOStuffSegmenter(nn.Module):
@@ -103,14 +102,14 @@ def iterate_dataset(dataloader, destpath, model):
             path = batch["relative_file_path_"][0]
             path = os.path.splitext(path)[0]
 
-            path = os.path.join(destpath, path + ".png")
+            path = os.path.join(destpath, f"{path}.png")
             save_segmentation(seg, path)
             num_processed += 1
         except Exception as e:
             print(e)
             print("but anyhow..")
 
-    print("Processed {} files. Bye.".format(num_processed))
+    print(f"Processed {num_processed} files. Bye.")
 
 
 from taming.data.sflckr import Examples
@@ -119,7 +118,7 @@ from torch.utils.data import DataLoader
 if __name__ == "__main__":
     dest = sys.argv[1]
     batchsize = 1
-    print("Running with batch-size {}, saving to {}...".format(batchsize, dest))
+    print(f"Running with batch-size {batchsize}, saving to {dest}...")
 
     model = COCOStuffSegmenter({}).cuda()
     print("Instantiated model.")

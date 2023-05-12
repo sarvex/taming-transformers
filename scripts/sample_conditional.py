@@ -26,10 +26,10 @@ def get_interactive_image(resize=False):
     image = st.file_uploader("Input", type=["jpg", "JPEG", "png"])
     if image is not None:
         image = Image.open(image)
-        if not image.mode == "RGB":
+        if image.mode != "RGB":
             image = image.convert("RGB")
         image = np.array(image).astype(np.uint8)
-        print("upload image shape: {}".format(image.shape))
+        print(f"upload image shape: {image.shape}")
         img = Image.fromarray(image)
         if resize:
             img = img.resize((256, 256))
@@ -60,9 +60,12 @@ def run_conditional(model, dsets):
     else:
         dset = next(iter(dsets.datasets.values()))
     batch_size = 1
-    start_index = st.sidebar.number_input("Example Index (Size: {})".format(len(dset)), value=0,
-                                          min_value=0,
-                                          max_value=len(dset)-batch_size)
+    start_index = st.sidebar.number_input(
+        f"Example Index (Size: {len(dset)})",
+        value=0,
+        min_value=0,
+        max_value=len(dset) - batch_size,
+    )
     indices = list(range(start_index, start_index+batch_size))
 
     example = default_collate([dset[i] for i in indices])
@@ -83,9 +86,9 @@ def run_conditional(model, dsets):
     cshape = quant_z.shape
 
     xrec = model.first_stage_model.decode(quant_z)
-    st.write("image: {}".format(x.shape))
+    st.write(f"image: {x.shape}")
     st.image(bchw_to_st(x), clamp=True, output_format="PNG")
-    st.write("image reconstruction: {}".format(xrec.shape))
+    st.write(f"image reconstruction: {xrec.shape}")
     st.image(bchw_to_st(xrec), clamp=True, output_format="PNG")
 
     if cond_key == "segmentation":
@@ -102,11 +105,7 @@ def run_conditional(model, dsets):
     idx = z_indices
 
     half_sample = st.sidebar.checkbox("Image Completion", value=False)
-    if half_sample:
-        start = idx.shape[1]//2
-    else:
-        start = 0
-
+    start = idx.shape[1]//2 if half_sample else 0
     idx[:,start:] = 0
     idx = idx.reshape(cshape[0],cshape[2],cshape[3])
     start_i = start//cshape[3]
@@ -218,7 +217,7 @@ def get_parser():
         metavar="base_config.yaml",
         help="paths to base configs. Loaded from left-to-right. "
         "Parameters can be overwritten or added with command-line options of the form `--key value`.",
-        default=list(),
+        default=[],
     )
     parser.add_argument(
         "-c",
@@ -306,7 +305,7 @@ if __name__ == "__main__":
     ckpt = None
     if opt.resume:
         if not os.path.exists(opt.resume):
-            raise ValueError("Cannot find {}".format(opt.resume))
+            raise ValueError(f"Cannot find {opt.resume}")
         if os.path.isfile(opt.resume):
             paths = opt.resume.split("/")
             try:
@@ -324,11 +323,7 @@ if __name__ == "__main__":
         opt.base = base_configs+opt.base
 
     if opt.config:
-        if type(opt.config) == str:
-            opt.base = [opt.config]
-        else:
-            opt.base = [opt.base[-1]]
-
+        opt.base = [opt.config] if type(opt.config) == str else [opt.base[-1]]
     configs = [OmegaConf.load(cfg) for cfg in opt.base]
     cli = OmegaConf.from_dotlist(unknown)
     if opt.ignore_base_data:
@@ -338,7 +333,7 @@ if __name__ == "__main__":
 
     st.sidebar.text(ckpt)
     gs = st.sidebar.empty()
-    gs.text(f"Global step: ?")
+    gs.text("Global step: ?")
     st.sidebar.text("Options")
     #gpu = st.sidebar.checkbox("GPU", value=True)
     gpu = True
@@ -347,7 +342,7 @@ if __name__ == "__main__":
     #show_config = st.sidebar.checkbox("Show Config", value=False)
     show_config = False
     if show_config:
-        st.info("Checkpoint: {}".format(ckpt))
+        st.info(f"Checkpoint: {ckpt}")
         st.json(OmegaConf.to_container(config))
 
     dsets, model, global_step = load_model_and_dset(config, ckpt, gpu, eval_mode)

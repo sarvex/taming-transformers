@@ -51,7 +51,7 @@ class ObjectsBoundingBoxConditionalBuilder(ObjectsCenterPointsConditionalBuilder
         description, crop_coordinates = self.inverse_build(conditional)
         for (representation, bbox), color in zip(description, cycle(COLOR_PALETTE)):
             annotation = self.representation_to_annotation(representation)
-            class_label = label_for_category_no(annotation.category_no) + ' ' + additional_parameters_string(annotation)
+            class_label = f'{label_for_category_no(annotation.category_no)} {additional_parameters_string(annotation)}'
             bbox = absolute_bbox(bbox, width, height)
             draw.rectangle(bbox, outline=color, width=line_width)
             draw.text((bbox[0] + line_width, bbox[1] + line_width), class_label, anchor='la', fill=BLACK, font=font)

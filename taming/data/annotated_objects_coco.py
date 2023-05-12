@@ -132,7 +132,9 @@ class AnnotatedObjectsCoco(AnnotatedObjectsDataset):
         return COCO_PATH_STRUCTURE[self.split]
 
     def get_image_path(self, image_id: str) -> Path:
-        return self.paths['files'].joinpath(self.image_descriptions[str(image_id)].file_name)
+        return self.paths['files'].joinpath(
+            self.image_descriptions[image_id].file_name
+        )
 
     def get_image_description(self, image_id: str) -> Dict[str, Any]:
         # noinspection PyProtectedMember

@@ -21,7 +21,6 @@ def chw_to_pillow(x):
 @torch.no_grad()
 def sample_classconditional(model, batch_size, class_label, steps=256, temperature=None, top_k=None, callback=None,
                             dim_z=256, h=16, w=16, verbose_time=False, top_p=None):
-    log = dict()
     assert type(class_label) == int, f'expecting type int but type is {type(class_label)}'
     qzshape = [batch_size, dim_z, h, w]
     assert not model.be_unconditional, 'Expecting a class-conditional Net2NetTransformer.'
@@ -34,15 +33,12 @@ def sample_classconditional(model, batch_size, class_label, steps=256, temperatu
         sampling_time = time.time() - t1
         print(f"Full sampling takes about {sampling_time:.2f} seconds.")
     x_sample = model.decode_to_img(index_sample, qzshape)
-    log["samples"] = x_sample
-    log["class_label"] = c_indices
-    return log
+    return {"samples": x_sample, "class_label": c_indices}
 
 
 @torch.no_grad()
 def sample_unconditional(model, batch_size, steps=256, temperature=None, top_k=None, top_p=None, callback=None,
                          dim_z=256, h=16, w=16, verbose_time=False):
-    log = dict()
     qzshape = [batch_size, dim_z, h, w]
     assert model.be_unconditional, 'Expecting an unconditional model.'
     c_indices = repeat(torch.tensor([model.sos_token]), '1 -> b 1', b=batch_size).to(model.device)  # sos token
@@ -54,8 +50,7 @@ def sample_unconditional(model, batch_size, steps=256, temperature=None, top_k=N
         sampling_time = time.time() - t1
         print(f"Full sampling takes about {sampling_time:.2f} seconds.")
     x_sample = model.decode_to_img(index_sample, qzshape)
-    log["samples"] = x_sample
-    return log
+    return {"samples": x_sample}
 
 
 @torch.no_grad()
@@ -129,7 +124,7 @@ def get_parser():
         metavar="base_config.yaml",
         help="paths to base configs. Loaded from left-to-right. "
         "Parameters can be overwritten or added with command-line options of the form `--key value`.",
-        default=list(),
+        default=[],
     )
     parser.add_argument(
         "-n",
@@ -214,7 +209,7 @@ if __name__ == "__main__":
     ckpt = None
 
     if not os.path.exists(opt.resume):
-        raise ValueError("Cannot find {}".format(opt.resume))
+        raise ValueError(f"Cannot find {opt.resume}")
     if os.path.isfile(opt.resume):
         paths = opt.resume.split("/")
         try:
@@ -242,7 +237,7 @@ if __name__ == "__main__":
         logdir = opt.outdir
 
     if opt.classes == "imagenet":
-        given_classes = [i for i in range(1000)]
+        given_classes = list(range(1000))
     else:
         cls_str = opt.classes
         assert not cls_str.endswith(","), 'class string should not end with a ","'

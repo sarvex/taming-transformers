@@ -25,7 +25,7 @@ def unpack(path):
             f.extractall(path=os.path.split(path)[0])
     else:
         raise NotImplementedError(
-            "Unknown file extension: {}".format(os.path.splitext(path)[1])
+            f"Unknown file extension: {os.path.splitext(path)[1]}"
         )
 
 
@@ -62,15 +62,9 @@ def prompt_download(file_, source, target_dir, content_dir=None):
             os.path.join(target_dir, content_dir)
         ):
             break
-        print(
-            "Please download '{}' from '{}' to '{}'.".format(file_, source, targetpath)
-        )
+        print(f"Please download '{file_}' from '{source}' to '{targetpath}'.")
         if content_dir is not None:
-            print(
-                "Or place its content into '{}'.".format(
-                    os.path.join(target_dir, content_dir)
-                )
-            )
+            print(f"Or place its content into '{os.path.join(target_dir, content_dir)}'.")
         input("Press Enter when done...")
     return targetpath
 
@@ -86,7 +80,7 @@ def download_url(file_, url, target_dir):
 
 
 def download_urls(urls, target_dir):
-    paths = dict()
+    paths = {}
     for fname, url in urls.items():
         outpath = download_url(fname, url, target_dir)
         paths[fname] = outpath
@@ -131,13 +125,13 @@ def custom_collate(batch):
         if torch.utils.data.get_worker_info() is not None:
             # If we're in a background process, concatenate directly into a
             # shared memory tensor to avoid an extra copy
-            numel = sum([x.numel() for x in batch])
+            numel = sum(x.numel() for x in batch)
             storage = elem.storage()._new_shared(numel)
             out = elem.new(storage)
         return torch.stack(batch, 0, out=out)
     elif elem_type.__module__ == 'numpy' and elem_type.__name__ != 'str_' \
             and elem_type.__name__ != 'string_':
-        if elem_type.__name__ == 'ndarray' or elem_type.__name__ == 'memmap':
+        if elem_type.__name__ in ['ndarray', 'memmap']:
             # array of string classes and object
             if np_str_obj_array_pattern.search(elem.dtype.str) is not None:
                 raise TypeError(default_collate_err_msg_format.format(elem.dtype))
@@ -155,13 +149,13 @@ def custom_collate(batch):
         return {key: custom_collate([d[key] for d in batch]) for key in elem}
     elif isinstance(elem, tuple) and hasattr(elem, '_fields'):  # namedtuple
         return elem_type(*(custom_collate(samples) for samples in zip(*batch)))
-    if isinstance(elem, collections.abc.Sequence) and isinstance(elem[0], Annotation):  # added
-        return batch  # added
-    elif isinstance(elem, collections.abc.Sequence):
+    if isinstance(elem, collections.abc.Sequence):
+        if isinstance(elem[0], Annotation):
+            return batch  # added
         # check to make sure that the elements in batch have consistent size
         it = iter(batch)
         elem_size = len(next(it))
-        if not all(len(elem) == elem_size for elem in it):
+        if any(len(elem) != elem_size for elem in it):
             raise RuntimeError('each element in list of batch should be of equal size')
         transposed = zip(*batch)
         return [custom_collate(samples) for samples in transposed]

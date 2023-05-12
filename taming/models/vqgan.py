@@ -47,7 +47,7 @@ class VQModel(pl.LightningModule):
         for k in keys:
             for ik in ignore_keys:
                 if k.startswith(ik):
-                    print("Deleting key {} from state_dict.".format(k))
+                    print(f"Deleting key {k} from state_dict.")
                     del sd[k]
         self.load_state_dict(sd, strict=False)
         print(f"Restored from {path}")
@@ -60,13 +60,11 @@ class VQModel(pl.LightningModule):
 
     def decode(self, quant):
         quant = self.post_quant_conv(quant)
-        dec = self.decoder(quant)
-        return dec
+        return self.decoder(quant)
 
     def decode_code(self, code_b):
         quant_b = self.quantize.embed_code(code_b)
-        dec = self.decode(quant_b)
-        return dec
+        return self.decode(quant_b)
 
     def forward(self, input):
         quant, diff, _ = self.encode(input)
@@ -134,7 +132,6 @@ class VQModel(pl.LightningModule):
         return self.decoder.conv_out.weight
 
     def log_images(self, batch, **kwargs):
-        log = dict()
         x = self.get_input(batch, self.image_key)
         x = x.to(self.device)
         xrec, _ = self(x)
@@ -143,9 +140,7 @@ class VQModel(pl.LightningModule):
             assert xrec.shape[1] > 3
             x = self.to_rgb(x)
             xrec = self.to_rgb(xrec)
-        log["inputs"] = x
-        log["reconstructions"] = xrec
-        return log
+        return {"inputs": x, "reconstructions": xrec}
 
     def to_rgb(self, x):
         assert self.image_key == "segmentation"
@@ -163,13 +158,15 @@ class VQSegmentationModel(VQModel):
 
     def configure_optimizers(self):
         lr = self.learning_rate
-        opt_ae = torch.optim.Adam(list(self.encoder.parameters())+
-                                  list(self.decoder.parameters())+
-                                  list(self.quantize.parameters())+
-                                  list(self.quant_conv.parameters())+
-                                  list(self.post_quant_conv.parameters()),
-                                  lr=lr, betas=(0.5, 0.9))
-        return opt_ae
+        return torch.optim.Adam(
+            list(self.encoder.parameters())
+            + list(self.decoder.parameters())
+            + list(self.quantize.parameters())
+            + list(self.quant_conv.parameters())
+            + list(self.post_quant_conv.parameters()),
+            lr=lr,
+            betas=(0.5, 0.9),
+        )
 
     def training_step(self, batch, batch_idx):
         x = self.get_input(batch, self.image_key)
@@ -190,7 +187,6 @@ class VQSegmentationModel(VQModel):
 
     @torch.no_grad()
     def log_images(self, batch, **kwargs):
-        log = dict()
         x = self.get_input(batch, self.image_key)
         x = x.to(self.device)
         xrec, _ = self(x)
@@ -203,9 +199,7 @@ class VQSegmentationModel(VQModel):
             xrec = xrec.squeeze(1).permute(0, 3, 1, 2).float()
             x = self.to_rgb(x)
             xrec = self.to_rgb(xrec)
-        log["inputs"] = x
-        log["reconstructions"] = xrec
-        return log
+        return {"inputs": x, "reconstructions": xrec}
 
 
 class VQNoDiscModel(VQModel):
@@ -249,13 +243,15 @@ class VQNoDiscModel(VQModel):
         return output
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(list(self.encoder.parameters())+
-                                  list(self.decoder.parameters())+
-                                  list(self.quantize.parameters())+
-                                  list(self.quant_conv.parameters())+
-                                  list(self.post_quant_conv.parameters()),
-                                  lr=self.learning_rate, betas=(0.5, 0.9))
-        return optimizer
+        return torch.optim.Adam(
+            list(self.encoder.parameters())
+            + list(self.decoder.parameters())
+            + list(self.quantize.parameters())
+            + list(self.quant_conv.parameters())
+            + list(self.post_quant_conv.parameters()),
+            lr=self.learning_rate,
+            betas=(0.5, 0.9),
+        )
 
 
 class GumbelVQ(VQModel):
@@ -349,7 +345,6 @@ class GumbelVQ(VQModel):
         return self.log_dict
 
     def log_images(self, batch, **kwargs):
-        log = dict()
         x = self.get_input(batch, self.image_key)
         x = x.to(self.device)
         # encode
@@ -358,9 +353,7 @@ class GumbelVQ(VQModel):
         quant, _, _ = self.quantize(h)
         # decode
         x_rec = self.decode(quant)
-        log["inputs"] = x
-        log["reconstructions"] = x_rec
-        return log
+        return {"inputs": x, "reconstructions": x_rec}
 
 
 class EMAVQ(VQModel):

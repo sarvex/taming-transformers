@@ -95,7 +95,7 @@ class ObjectsCenterPointsConditionalBuilder:
         for (representation, (x, y)), color in zip(description, cycle(COLOR_PALETTE)):
             x_abs, y_abs = x * width, y * height
             ann = self.representation_to_annotation(representation)
-            label = label_for_category_no(ann.category_no) + ' ' + additional_parameters_string(ann)
+            label = f'{label_for_category_no(ann.category_no)} {additional_parameters_string(ann)}'
             ellipse_bbox = [x_abs - circle_size, y_abs - circle_size, x_abs + circle_size, y_abs + circle_size]
             draw.ellipse(ellipse_bbox, fill=color, width=0)
             draw.text((x_abs, y_abs), label, anchor='md', fill=BLACK, font=font)

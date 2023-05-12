@@ -127,6 +127,4 @@ class RandomHorizontalFlipReturn(RandomHorizontalFlip):
         Based on:
             torchvision.transforms.RandomHorizontalFlip (version 1.7.0)
         """
-        if torch.rand(1) < self.p:
-            return True, F.hflip(img)
-        return False, img
+        return (True, F.hflip(img)) if torch.rand(1) < self.p else (False, img)

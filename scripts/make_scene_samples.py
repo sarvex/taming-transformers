@@ -92,7 +92,7 @@ def sample(model: Net2NetTransformer, annotations: List[Annotation], dataset: An
 
 
 def get_resolution(resolution_str: str) -> (Tuple[int, int], Tuple[int, int]):
-    if not resolution_str.count(',') == 1:
+    if resolution_str.count(',') != 1:
         raise ValueError("Give resolution as in 'height,width'")
     res_h, res_w = resolution_str.split(',')
     res_h = max(int(res_h), trained_on_res)
@@ -115,14 +115,14 @@ def add_arg_to_parser(parser):
         "--conditional",
         type=str,
         default='objects_bbox',
-        help=f"objects_bbox or objects_center_points",
+        help="objects_bbox or objects_center_points",
     )
     parser.add_argument(
         "-N",
         "--n_samples_per_layout",
         type=int,
         default=4,
-        help=f"how many samples to generate per layout",
+        help="how many samples to generate per layout",
     )
     return parser
 
@@ -138,7 +138,7 @@ if __name__ == "__main__":
     ckpt = None
     if opt.resume:
         if not os.path.exists(opt.resume):
-            raise ValueError("Cannot find {}".format(opt.resume))
+            raise ValueError(f"Cannot find {opt.resume}")
         if os.path.isfile(opt.resume):
             paths = opt.resume.split("/")
             try:
@@ -156,11 +156,7 @@ if __name__ == "__main__":
         opt.base = base_configs+opt.base
 
     if opt.config:
-        if type(opt.config) == str:
-            opt.base = [opt.config]
-        else:
-            opt.base = [opt.base[-1]]
-
+        opt.base = [opt.config] if type(opt.config) == str else [opt.base[-1]]
     configs = [OmegaConf.load(cfg) for cfg in opt.base]
     cli = OmegaConf.from_dotlist(unknown)
     if opt.ignore_base_data:

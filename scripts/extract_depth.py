@@ -15,9 +15,7 @@ def get_state(gpu):
     midas_transforms = torch.hub.load("intel-isl/MiDaS", "transforms")
     transform = midas_transforms.default_transform
 
-    state = {"model": midas,
-             "transform": transform}
-    return state
+    return {"model": midas, "transform": transform}
 
 
 def depth_to_rgba(x):
@@ -64,9 +62,7 @@ def get_filename(relpath, level=-2):
 
 def save_depth(dataset, path, debug=False):
     os.makedirs(path)
-    N = len(dset)
-    if debug:
-        N = 10
+    N = 10 if debug else len(dset)
     state = get_state(gpu=True)
     for idx in trange(N, desc="Data"):
         ex = dataset[idx]
@@ -79,33 +75,34 @@ def save_depth(dataset, path, debug=False):
         # run model
         xout = run(image, state)
         I = depth_to_rgba(xout)
-        Image.fromarray(I).save("{}.png".format(savepath))
+        Image.fromarray(I).save(f"{savepath}.png")
 
 
 if __name__ == "__main__":
     from taming.data.imagenet import ImageNetTrain, ImageNetValidation
     out = "data/imagenet_depth"
     if not os.path.exists(out):
-        print("Please create a folder or symlink '{}' to extract depth data ".format(out) +
-              "(be prepared that the output size will be larger than ImageNet itself).")
+        print(
+            f"Please create a folder or symlink '{out}' to extract depth data (be prepared that the output size will be larger than ImageNet itself)."
+        )
         exit(1)
 
     # go
     dset = ImageNetValidation()
     abspath = os.path.join(out, "val")
     if os.path.exists(abspath):
-        print("{} exists - not doing anything.".format(abspath))
+        print(f"{abspath} exists - not doing anything.")
     else:
-        print("preparing {}".format(abspath))
+        print(f"preparing {abspath}")
         save_depth(dset, abspath)
         print("done with validation split")
 
     dset = ImageNetTrain()
     abspath = os.path.join(out, "train")
     if os.path.exists(abspath):
-        print("{} exists - not doing anything.".format(abspath))
+        print(f"{abspath} exists - not doing anything.")
     else:
-        print("preparing {}".format(abspath))
+        print(f"preparing {abspath}")
         save_depth(dset, abspath)
         print("done with train split")
 

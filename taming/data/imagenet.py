@@ -13,18 +13,20 @@ import taming.data.utils as bdu
 
 
 def give_synsets_from_indices(indices, path_to_yaml="data/imagenet_idx_to_synset.yaml"):
-    synsets = []
     with open(path_to_yaml) as f:
         di2s = yaml.load(f)
-    for idx in indices:
-        synsets.append(str(di2s[idx]))
-    print("Using {} different synsets for construction of Restriced Imagenet.".format(len(synsets)))
+    synsets = [str(di2s[idx]) for idx in indices]
+    print(
+        f"Using {len(synsets)} different synsets for construction of Restriced Imagenet."
+    )
     return synsets
 
 
 def str_to_indices(string):
     """Expects a string in the format '32-123, 256, 280-321'"""
-    assert not string.endswith(","), "provided string '{}' ends with a comma, pls remove it".format(string)
+    assert not string.endswith(
+        ","
+    ), f"provided string '{string}' ends with a comma, pls remove it"
     subs = string.split(",")
     indices = []
     for sub in subs:
@@ -33,7 +35,7 @@ def str_to_indices(string):
         if len(subsubs) == 1:
             indices.append(int(subsubs[0]))
         else:
-            rang = [j for j in range(int(subsubs[0]), int(subsubs[1]))]
+            rang = list(range(int(subsubs[0]), int(subsubs[1])))
             indices.extend(rang)
     return sorted(indices)
 
@@ -41,7 +43,7 @@ def str_to_indices(string):
 class ImageNetBase(Dataset):
     def __init__(self, config=None):
         self.config = config or OmegaConf.create()
-        if not type(self.config)==dict:
+        if type(self.config) != dict:
             self.config = OmegaConf.to_container(self.config)
         self._prepare()
         self._prepare_synset_to_human()
@@ -58,34 +60,33 @@ class ImageNetBase(Dataset):
         raise NotImplementedError()
 
     def _filter_relpaths(self, relpaths):
-        ignore = set([
-            "n06596364_9591.JPEG",
-        ])
-        relpaths = [rpath for rpath in relpaths if not rpath.split("/")[-1] in ignore]
-        if "sub_indices" in self.config:
-            indices = str_to_indices(self.config["sub_indices"])
-            synsets = give_synsets_from_indices(indices, path_to_yaml=self.idx2syn)  # returns a list of strings
-            files = []
-            for rpath in relpaths:
-                syn = rpath.split("/")[0]
-                if syn in synsets:
-                    files.append(rpath)
-            return files
-        else:
+        ignore = {"n06596364_9591.JPEG"}
+        relpaths = [rpath for rpath in relpaths if rpath.split("/")[-1] not in ignore]
+        if "sub_indices" not in self.config:
             return relpaths
+        indices = str_to_indices(self.config["sub_indices"])
+        synsets = give_synsets_from_indices(indices, path_to_yaml=self.idx2syn)  # returns a list of strings
+        files = []
+        for rpath in relpaths:
+            syn = rpath.split("/")[0]
+            if syn in synsets:
+                files.append(rpath)
+        return files
 
     def _prepare_synset_to_human(self):
         SIZE = 2655750
-        URL = "https://heibox.uni-heidelberg.de/f/9f28e956cd304264bb82/?dl=1"
         self.human_dict = os.path.join(self.root, "synset_human.txt")
-        if (not os.path.exists(self.human_dict) or
-                not os.path.getsize(self.human_dict)==SIZE):
+        if (
+            not os.path.exists(self.human_dict)
+            or os.path.getsize(self.human_dict) != SIZE
+        ):
+            URL = "https://heibox.uni-heidelberg.de/f/9f28e956cd304264bb82/?dl=1"
             download(URL, self.human_dict)
 
     def _prepare_idx_to_synset(self):
-        URL = "https://heibox.uni-heidelberg.de/f/d835d5b6ceda4d3aa910/?dl=1"
         self.idx2syn = os.path.join(self.root, "index_synset.yaml")
         if (not os.path.exists(self.idx2syn)):
+            URL = "https://heibox.uni-heidelberg.de/f/d835d5b6ceda4d3aa910/?dl=1"
             download(URL, self.idx2syn)
 
     def _load(self):
@@ -93,13 +94,15 @@ class ImageNetBase(Dataset):
             self.relpaths = f.read().splitlines()
             l1 = len(self.relpaths)
             self.relpaths = self._filter_relpaths(self.relpaths)
-            print("Removed {} files from filelist during filtering.".format(l1 - len(self.relpaths)))
+            print(
+                f"Removed {l1 - len(self.relpaths)} files from filelist during filtering."
+            )
 
         self.synsets = [p.split("/")[0] for p in self.relpaths]
         self.abspaths = [os.path.join(self.datadir, p) for p in self.relpaths]
 
         unique_synsets = np.unique(self.synsets)
-        class_dict = dict((synset, i) for i, synset in enumerate(unique_synsets))
+        class_dict = {synset: i for i, synset in enumerate(unique_synsets)}
         self.class_labels = [class_dict[s] for s in self.synsets]
 
         with open(self.human_dict, "r") as f:
@@ -141,17 +144,20 @@ class ImageNetTrain(ImageNetBase):
         self.expected_length = 1281167
         if not bdu.is_prepared(self.root):
             # prep
-            print("Preparing dataset {} in {}".format(self.NAME, self.root))
+            print(f"Preparing dataset {self.NAME} in {self.root}")
 
             datadir = self.datadir
             if not os.path.exists(datadir):
                 path = os.path.join(self.root, self.FILES[0])
-                if not os.path.exists(path) or not os.path.getsize(path)==self.SIZES[0]:
+                if (
+                    not os.path.exists(path)
+                    or os.path.getsize(path) != self.SIZES[0]
+                ):
                     import academictorrents as at
                     atpath = at.get(self.AT_HASH, datastore=self.root)
                     assert atpath == path
 
-                print("Extracting {} to {}".format(path, datadir))
+                print(f"Extracting {path} to {datadir}")
                 os.makedirs(datadir, exist_ok=True)
                 with tarfile.open(path, "r:") as tar:
                     tar.extractall(path=datadir)
@@ -199,23 +205,29 @@ class ImageNetValidation(ImageNetBase):
         self.expected_length = 50000
         if not bdu.is_prepared(self.root):
             # prep
-            print("Preparing dataset {} in {}".format(self.NAME, self.root))
+            print(f"Preparing dataset {self.NAME} in {self.root}")
 
             datadir = self.datadir
             if not os.path.exists(datadir):
                 path = os.path.join(self.root, self.FILES[0])
-                if not os.path.exists(path) or not os.path.getsize(path)==self.SIZES[0]:
+                if (
+                    not os.path.exists(path)
+                    or os.path.getsize(path) != self.SIZES[0]
+                ):
                     import academictorrents as at
                     atpath = at.get(self.AT_HASH, datastore=self.root)
                     assert atpath == path
 
-                print("Extracting {} to {}".format(path, datadir))
+                print(f"Extracting {path} to {datadir}")
                 os.makedirs(datadir, exist_ok=True)
                 with tarfile.open(path, "r:") as tar:
                     tar.extractall(path=datadir)
 
                 vspath = os.path.join(self.root, self.FILES[1])
-                if not os.path.exists(vspath) or not os.path.getsize(vspath)==self.SIZES[1]:
+                if (
+                    not os.path.exists(vspath)
+                    or os.path.getsize(vspath) != self.SIZES[1]
+                ):
                     download(self.VS_URL, vspath)
 
                 with open(vspath, "r") as f:
@@ -244,9 +256,8 @@ class ImageNetValidation(ImageNetBase):
 def get_preprocessor(size=None, random_crop=False, additional_targets=None,
                      crop_size=None):
     if size is not None and size > 0:
-        transforms = list()
         rescaler = albumentations.SmallestMaxSize(max_size = size)
-        transforms.append(rescaler)
+        transforms = [rescaler]
         if not random_crop:
             cropper = albumentations.CenterCrop(height=size,width=size)
             transforms.append(cropper)
@@ -255,19 +266,21 @@ def get_preprocessor(size=None, random_crop=False, additional_targets=None,
             transforms.append(cropper)
             flipper = albumentations.HorizontalFlip()
             transforms.append(flipper)
-        preprocessor = albumentations.Compose(transforms,
-                                              additional_targets=additional_targets)
+        return albumentations.Compose(
+            transforms, additional_targets=additional_targets
+        )
     elif crop_size is not None and crop_size > 0:
-        if not random_crop:
-            cropper = albumentations.CenterCrop(height=crop_size,width=crop_size)
-        else:
-            cropper = albumentations.RandomCrop(height=crop_size,width=crop_size)
+        cropper = (
+            albumentations.CenterCrop(height=crop_size, width=crop_size)
+            if not random_crop
+            else albumentations.RandomCrop(height=crop_size, width=crop_size)
+        )
         transforms = [cropper]
-        preprocessor = albumentations.Compose(transforms,
-                                              additional_targets=additional_targets)
+        return albumentations.Compose(
+            transforms, additional_targets=additional_targets
+        )
     else:
-        preprocessor = lambda **kwargs: kwargs
-    return preprocessor
+        return lambda **kwargs: kwargs
 
 
 def rgba_to_depth(x):
@@ -389,7 +402,7 @@ class DRINExamples(Dataset):
 
     def preprocess_image(self, image_path):
         image = Image.open(image_path)
-        if not image.mode == "RGB":
+        if image.mode != "RGB":
             image = image.convert("RGB")
         image = np.array(image).astype(np.uint8)
         image = self.preprocessor(image=image)["image"]
@@ -404,8 +417,7 @@ class DRINExamples(Dataset):
         return depth
 
     def __getitem__(self, i):
-        e = dict()
-        e["image"] = self.preprocess_image(self.image_paths[i])
+        e = {"image": self.preprocess_image(self.image_paths[i])}
         e["depth"] = self.preprocess_depth(self.depth_paths[i])
         transformed = self.preprocessor(image=e["image"], depth=e["depth"])
         e["image"] = transformed["image"]
@@ -455,7 +467,7 @@ class ImageNetScale(Dataset):
         self.hr_factor = hr_factor
         self.keep_mode = keep_mode
 
-        transforms = list()
+        transforms = []
 
         if self.size is not None and self.size > 0:
             rescaler = albumentations.SmallestMaxSize(max_size = self.size)
@@ -463,7 +475,7 @@ class ImageNetScale(Dataset):
             transforms.append(rescaler)
 
         if self.crop_size is not None and self.crop_size > 0:
-            if len(transforms) == 0:
+            if not transforms:
                 self.rescaler = albumentations.SmallestMaxSize(max_size = self.crop_size)
 
             if not self.random_crop:
@@ -472,11 +484,8 @@ class ImageNetScale(Dataset):
                 cropper = albumentations.RandomCrop(height=self.crop_size,width=self.crop_size)
             transforms.append(cropper)
 
-        if len(transforms) > 0:
-            if self.up_factor is not None:
-                additional_targets = {"lr": "image"}
-            else:
-                additional_targets = None
+        if transforms:
+            additional_targets = {"lr": "image"} if self.up_factor is not None else None
             self.preprocessor = albumentations.Compose(transforms,
                                                        additional_targets=additional_targets)
         else:

@@ -15,8 +15,7 @@ class CustomBase(Dataset):
         return len(self.data)
 
     def __getitem__(self, i):
-        example = self.data[i]
-        return example
+        return self.data[i]
 
 
 
